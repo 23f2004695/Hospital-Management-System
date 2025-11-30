@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h4><i class="fas fa-user-edit"></i> My Profile</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="full_name" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="full_name" name="full_name" value="{{ current_user.full_name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="{{ current_user.phone }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" value="{{ current_user.date_of_birth.strftime('%Y-%m-%d') if current_user.date_of_birth else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="gender" class="form-label">Gender</label>
+                                <select class="form-select" id="gender" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male" {% if current_user.gender == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if current_user.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Other" {% if current_user.gender == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="blood_group" class="form-label">Blood Group</label>
+                                <select class="form-select" id="blood_group" name="blood_group">
+                                    <option value="">Select Blood Group</option>
+                                    {% for bg in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] %}
+                                        <option value="{{ bg }}" {% if current_user.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="2">{{ current_user.address or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="emergency_contact" class="form-label">Emergency Contact</label>
+                        <input type="tel" class="form-control" id="emergency_contact" name="emergency_contact" value="{{ current_user.emergency_contact or '' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="medical_history" class="form-label">Medical History</label>
+                        <textarea class="form-control" id="medical_history" name="medical_history" rows="3">{{ current_user.medical_history or '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary">Back</a>
+                        <button type="submit" class="btn btn-info">Update Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

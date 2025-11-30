@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Patient History{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-history"></i> Patient History - {{ patient.full_name }}</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Patient Information</div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ patient.email }}</p>
+                <p><strong>Phone:</strong> {{ patient.phone }}</p>
+                {% if patient.blood_group %}<p><strong>Blood Group:</strong> {{ patient.blood_group }}</p>{% endif %}
+                {% if patient.medical_history %}<p><strong>History:</strong> {{ patient.medical_history[:100] }}...</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Appointment History</div>
+            <div class="card-body">
+                {% if appointments %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointments %}
+                                <tr>
+                                    <td>{{ appointment.appointment_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ appointment.appointment_time.strftime('%H:%M') }}</td>
+                                    <td>{{ appointment.reason or 'Regular' }}</td>
+                                    <td><span class="badge bg-primary">{{ appointment.status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No appointments found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="{{ url_for('doctor.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+{% endblock %}
