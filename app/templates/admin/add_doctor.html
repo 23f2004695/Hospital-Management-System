@@ -1,103 +1,34 @@
 {% extends "base.html" %}
+{% from "macros.html" import csrf %}
 
 {% block title %}Add Doctor{% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8 mx-auto">
-        <div class="card">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h4><i class="fas fa-plus"></i> Add New Doctor</h4>
+                <h4 class="mb-0 py-1"><i class="fas fa-user-plus"></i> Add New Doctor</h4>
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 <form method="POST">
+                    {{ csrf() }}
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="full_name" class="form-label">Full Name *</label>
-                                <input type="text" class="form-control" id="full_name" name="full_name" required>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="username" class="form-label">Username *</label>
+                            <input type="text" class="form-control" id="username" name="username" value="{{ form.get('username', '') }}" maxlength="80" required>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username *</label>
-                                <input type="text" class="form-control" id="username" name="username" required>
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">Password *</label>
+                            <input type="password" class="form-control" id="password" name="password" minlength="6" autocomplete="new-password" required>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email *</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="phone" class="form-label">Phone *</label>
-                                <input type="tel" class="form-control" id="phone" name="phone" required>
-                            </div>
-                        </div>
-                    </div>
+                    {% with d = form %}{% include "admin/_doctor_fields.html" %}{% endwith %}
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password *</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="license_number" class="form-label">License Number *</label>
-                                <input type="text" class="form-control" id="license_number" name="license_number" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="department_id" class="form-label">Department *</label>
-                                <select class="form-select" id="department_id" name="department_id" required>
-                                    <option value="">Select Department</option>
-                                    {% for department in departments %}
-                                        <option value="{{ department.id }}">{{ department.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="experience_years" class="form-label">Experience (Years)</label>
-                                <input type="number" class="form-control" id="experience_years" name="experience_years" min="0" value="0">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="qualification" class="form-label">Qualification</label>
-                                <input type="text" class="form-control" id="qualification" name="qualification" placeholder="MBBS, MD">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="consultation_fee" class="form-label">Consultation Fee ($)</label>
-                                <input type="number" class="form-control" id="consultation_fee" name="consultation_fee" min="0" step="0.01" value="500">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between">
-                                <a href="{{ url_for('admin.manage_doctors') }}" class="btn btn-secondary">Back</a>
-                                <button type="submit" class="btn btn-primary">Add Doctor</button>
-                            </div>
-                        </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('admin.manage_doctors') }}" class="btn btn-secondary">Back</a>
+                        <button type="submit" class="btn btn-primary">Add Doctor</button>
                     </div>
                 </form>
             </div>

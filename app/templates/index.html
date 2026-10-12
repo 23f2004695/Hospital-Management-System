@@ -1,71 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome - Hospital Management System{% endblock %}
+{% block title %}Welcome{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="jumbotron bg-light p-5 rounded-3 text-center mb-4">
-            <h1 class="display-4"><i class="fas fa-hospital"></i> Hospital Management System</h1>
-            <p class="lead">Efficiently manage hospital operations, appointments, and patient care</p>
+<div class="hero rounded-4 p-5 mb-4 text-center text-white shadow-sm">
+    <h1 class="display-5 fw-semibold"><i class="fas fa-hospital"></i> Hospital Management System</h1>
+    <p class="lead mb-4 opacity-75">Appointments, doctors and patient records in one place</p>
 
-            {% if not current_user.is_authenticated %}
-                <hr class="my-4">
-                <div class="row justify-content-center">
-                    
-                </div>
-                <div class="row justify-content-center">
-                <p class="mt-4">
-                    <a class="btn btn-primary btn-lg me-3" href="{{ url_for('auth.login') }}" role="button">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </a>
-                    <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.register') }}" role="button">
-                        <i class="fas fa-user-plus"></i> Register as Patient
-                    </a>
-                </p>
-                </div>
-            {% else %}
-                <div class="mt-4">
-                    <p class="h5">Welcome back, {{ current_user.full_name }}!</p>
-                    {% if session.user_type == 'admin' %}
-                        <a class="btn btn-primary btn-lg" href="{{ url_for('admin.dashboard') }}">Go to Admin Dashboard</a>
-                    {% elif session.user_type == 'doctor' %}
-                        <a class="btn btn-success btn-lg" href="{{ url_for('doctor.dashboard') }}">Go to Doctor Dashboard</a>
-                    {% elif session.user_type == 'patient' %}
-                        <a class="btn btn-info btn-lg" href="{{ url_for('patient.dashboard') }}">Go to Patient Dashboard</a>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </div>
-    </div>
+    {% if current_user.is_authenticated %}
+        <p class="h5 mb-3">Welcome back, {{ current_user.full_name }}!</p>
+        <a class="btn btn-light btn-lg" href="{{ url_for('auth.home') }}">
+            <i class="fas fa-gauge me-1"></i> Go to my dashboard
+        </a>
+    {% else %}
+        <a class="btn btn-light btn-lg me-2 mb-2" href="{{ url_for('auth.login') }}"><i class="fas fa-right-to-bracket me-1"></i> Login</a>
+        <a class="btn btn-outline-light btn-lg mb-2" href="{{ url_for('auth.register') }}"><i class="fas fa-user-plus me-1"></i> Register as Patient</a>
+    {% endif %}
 </div>
 
-{% if not current_user.is_authenticated %}
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card">
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 feature-card">
             <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-calendar-check text-primary"></i> Easy Appointments</h5>
-                <p class="card-text">Book appointments with doctors based on availability and specialization.</p>
+                <div class="feature-icon bg-primary bg-opacity-10 text-primary mb-3"><i class="fas fa-calendar-check"></i></div>
+                <h5 class="card-title">Easy Appointments</h5>
+                <p class="card-text text-muted">Pick a department, a doctor and one of their free 30-minute slots for the next week.</p>
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-4">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card h-100 feature-card">
             <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-history text-success"></i> Medical History</h5>
-                <p class="card-text">Keep track of all medical treatments, prescriptions, and diagnoses.</p>
+                <div class="feature-icon bg-success bg-opacity-10 text-success mb-3"><i class="fas fa-file-medical"></i></div>
+                <h5 class="card-title">Medical History</h5>
+                <p class="card-text text-muted">Every diagnosis, prescription and follow-up is saved to the patient's record.</p>
             </div>
         </div>
     </div>
-    <div class="col-md-4 mb-4">
-        <div class="card">
+    <div class="col-md-4">
+        <div class="card h-100 feature-card">
             <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-users text-info"></i> User Management</h5>
-                <p class="card-text">Comprehensive management of doctors, patients, and hospital staff.</p>
+                <div class="feature-icon bg-info bg-opacity-10 text-info mb-3"><i class="fas fa-user-doctor"></i></div>
+                <h5 class="card-title">Doctor &amp; Staff Management</h5>
+                <p class="card-text text-muted">Admins add doctors, manage departments and keep an eye on every appointment.</p>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
 {% endblock %}

@@ -3,58 +3,41 @@
 {% block title %}Treatment History{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2><i class="fas fa-file-medical"></i> Treatment History</h2>
-    </div>
-</div>
+<h2 class="mb-4"><i class="fas fa-file-medical text-primary"></i> Treatment History</h2>
 
-<div class="card">
-    <div class="card-body">
-        {% if appointments %}
-            {% for appointment in appointments %}
-                {% for treatment in appointment.treatments %}
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <strong>{{ appointment.appointment_date.strftime('%Y-%m-%d') }}</strong> - Dr. {{ appointment.doctor.full_name }} ({{ appointment.doctor.department.name }})
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>Diagnosis</h6>
-                                <p>{{ treatment.diagnosis }}</p>
-                            </div>
-                            <div class="col-md-6">
-                                {% if treatment.prescription %}
-                                <h6>Prescription</h6>
-                                <p>{{ treatment.prescription }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% if treatment.treatment_notes %}
-                        <div class="row">
-                            <div class="col-12">
-                                <h6>Treatment Notes</h6>
-                                <p>{{ treatment.treatment_notes }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if treatment.follow_up_required %}
-                        <div class="row">
-                            <div class="col-12">
-                                <p><strong>Follow-up Required:</strong> Yes {% if treatment.follow_up_date %} - {{ treatment.follow_up_date }} {% endif %}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
+{% for appointment in appointments %}
+    {% for treatment in appointment.treatments %}
+    <div class="card mb-3" id="appt-{{ appointment.id }}">
+        <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+            <span><strong>{{ appointment.appointment_date.strftime('%d %b %Y') }}</strong> &middot; Dr. {{ appointment.doctor.full_name }}</span>
+            <span class="text-muted fw-normal">{{ appointment.doctor.department.name }}</span>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted text-uppercase small">Diagnosis</h6>
+                    <p>{{ treatment.diagnosis }}</p>
                 </div>
-                {% endfor %}
-            {% endfor %}
-        {% else %}
-            <p class="text-muted">No treatment history found.</p>
-        {% endif %}
+                {% if treatment.prescription %}
+                <div class="col-md-6">
+                    <h6 class="text-muted text-uppercase small">Prescription</h6>
+                    <p>{{ treatment.prescription }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% if treatment.treatment_notes %}
+                <h6 class="text-muted text-uppercase small">Notes</h6>
+                <p>{{ treatment.treatment_notes }}</p>
+            {% endif %}
+            {% if treatment.follow_up_required %}
+                <p class="mb-0 text-primary"><i class="fas fa-calendar-day me-1"></i>Follow-up required{% if treatment.follow_up_date %} on {{ treatment.follow_up_date.strftime('%d %b %Y') }}{% endif %}</p>
+            {% endif %}
+        </div>
     </div>
-</div>
+    {% endfor %}
+{% else %}
+    <div class="card"><div class="card-body text-muted">No treatment history yet. It will show up here after your first completed visit.</div></div>
+{% endfor %}
 
-<a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+<a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary mt-2">Back to Dashboard</a>
 {% endblock %}

@@ -1,76 +1,77 @@
 {% extends "base.html" %}
+{% from "macros.html" import status, post_button %}
 
 {% block title %}Patient Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2><i class="fas fa-user"></i> Patient Dashboard</h2>
-        <p class="text-muted">Welcome, {{ current_user.full_name }}!</p>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="mb-1"><i class="fas fa-user text-primary"></i> Patient Dashboard</h2>
+        <p class="text-muted mb-0">Welcome, {{ current_user.full_name }}!</p>
     </div>
+    <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-primary btn-lg"><i class="fas fa-calendar-plus me-1"></i> Book Appointment</a>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-calendar-plus"></i> Upcoming Appointments</h5>
-            </div>
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-calendar-check me-1"></i> Upcoming Appointments</div>
             <div class="card-body">
-                {% if upcoming_appointments %}
-                    {% for appointment in upcoming_appointments %}
-                    <div class="border-bottom mb-2 pb-2">
-                        <strong>{{ appointment.appointment_date.strftime('%Y-%m-%d') }}</strong> at <strong>{{ appointment.appointment_time.strftime('%H:%M') }}</strong>
-                        <div class="text-muted small">Dr. {{ appointment.doctor.full_name }} - {{ appointment.doctor.department.name }}</div>
-                        <a href="{{ url_for('patient.cancel_appointment', appointment_id=appointment.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Cancel?')">Cancel</a>
+                {% for appointment in upcoming_appointments %}
+                    <div class="d-flex justify-content-between align-items-center {% if not loop.last %}border-bottom mb-2 pb-2{% endif %}">
+                        <div>
+                            <strong>{{ appointment.appointment_date.strftime('%a %d %b') }}</strong> at <strong>{{ appointment.appointment_time.strftime('%H:%M') }}</strong>
+                            <div class="text-muted small">Dr. {{ appointment.doctor.full_name }} &middot; {{ appointment.doctor.department.name }}</div>
+                        </div>
+                        {{ post_button(url_for('patient.cancel_appointment', appointment_id=appointment.id), 'Cancel', confirm='Cancel this appointment?') }}
                     </div>
-                    {% endfor %}
                 {% else %}
                     <p class="text-muted">No upcoming appointments.</p>
-                    <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-primary">Book Appointment</a>
-                {% endif %}
+                    <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-outline-primary btn-sm">Book one now</a>
+                {% endfor %}
             </div>
         </div>
     </div>
 
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-history"></i> Recent Appointments</h5>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-clock-rotate-left me-1"></i> Recent Appointments</span>
+                {% if recent_appointments %}<a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-outline-primary">View all</a>{% endif %}
             </div>
             <div class="card-body">
-                {% if recent_appointments %}
-                    {% for appointment in recent_appointments %}
-                    <div class="border-bottom mb-2 pb-2">
-                        <strong>{{ appointment.appointment_date.strftime('%Y-%m-%d') }}</strong>
-                        <span class="badge {% if appointment.status == 'Completed' %}bg-success{% else %}bg-primary{% endif %}">{{ appointment.status }}</span>
-                        <div class="text-muted small">Dr. {{ appointment.doctor.full_name }}</div>
+                {% for appointment in recent_appointments %}
+                    <div class="d-flex justify-content-between {% if not loop.last %}border-bottom mb-2 pb-2{% endif %}">
+                        <div>
+                            <strong>{{ appointment.appointment_date.strftime('%d %b %Y') }}</strong>
+                            <div class="text-muted small">Dr. {{ appointment.doctor.full_name }}</div>
+                        </div>
+                        <div>{{ status(appointment.status) }}</div>
                     </div>
-                    {% endfor %}
-                    <a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-outline-primary mt-2">View All</a>
                 {% else %}
-                    <p class="text-muted">No appointment history.</p>
-                {% endif %}
+                    <p class="text-muted mb-0">No appointment history yet.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
+<div class="row g-4">
+    <div class="col-lg-8">
         <div class="card">
-            <div class="card-header"><h5><i class="fas fa-hospital"></i> Departments</h5></div>
+            <div class="card-header"><i class="fas fa-hospital me-1"></i> Departments</div>
             <div class="card-body">
-                <div class="row">
+                <div class="row g-3">
                     {% for department in departments %}
-                    <div class="col-md-6 mb-3">
-                        <div class="card h-100">
+                    {% set count = doctor_counts.get(department.id, 0) %}
+                    <div class="col-md-6">
+                        <a href="{{ url_for('patient.book_appointment', department=department.id) }}" class="card h-100 dept-card text-decoration-none text-reset">
                             <div class="card-body">
-                                <h6>{{ department.name }}</h6>
-                                <p class="card-text small">{{ department.description }}</p>
-                                <small class="text-muted">{{ department.doctors|length }} doctors</small>
+                                <h6 class="mb-1">{{ department.name }}</h6>
+                                <p class="card-text small text-muted mb-2">{{ department.description }}</p>
+                                <small class="text-primary">{{ count }} {{ 'doctor' if count == 1 else 'doctors' }} available</small>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     {% endfor %}
                 </div>
@@ -78,16 +79,13 @@
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <div class="card">
-            <div class="card-header"><h5><i class="fas fa-tools"></i> Quick Actions</h5></div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-primary">Book Appointment</a>
-                    <a href="{{ url_for('patient.appointments') }}" class="btn btn-outline-info">View Appointments</a>
-                    <a href="{{ url_for('patient.profile') }}" class="btn btn-outline-secondary">Update Profile</a>
-                    <a href="{{ url_for('patient.treatment_history') }}" class="btn btn-outline-success">Treatment History</a>
-                </div>
+            <div class="card-header"><i class="fas fa-bolt me-1"></i> Quick Actions</div>
+            <div class="card-body d-grid gap-2">
+                <a href="{{ url_for('patient.appointments') }}" class="btn btn-outline-info">View Appointments</a>
+                <a href="{{ url_for('patient.treatment_history') }}" class="btn btn-outline-success">Treatment History</a>
+                <a href="{{ url_for('patient.profile') }}" class="btn btn-outline-secondary">Update Profile</a>
             </div>
         </div>
     </div>

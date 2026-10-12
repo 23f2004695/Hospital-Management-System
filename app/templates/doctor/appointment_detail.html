@@ -1,81 +1,87 @@
 {% extends "base.html" %}
+{% from "macros.html" import csrf, status, post_button %}
 
 {% block title %}Appointment Detail{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
+{% set t = appointment.treatment %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-clipboard-user text-primary"></i> Appointment #{{ appointment.id }}</h2>
+    <a href="{{ url_for('doctor.appointments') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i> Back</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
         <div class="card">
-            <div class="card-header">
-                <h5>Appointment Details</h5>
-            </div>
+            <div class="card-header">Appointment Details</div>
             <div class="card-body">
-                <div class="row mb-3">
+                <div class="row mb-2">
                     <div class="col-md-6">
-                        <p><strong>Patient:</strong> {{ appointment.patient.full_name }}</p>
-                        <p><strong>Date:</strong> {{ appointment.appointment_date.strftime('%Y-%m-%d') }}</p>
-                        <p><strong>Time:</strong> {{ appointment.appointment_time.strftime('%H:%M') }}</p>
+                        <p class="mb-2"><strong>Patient:</strong> {{ appointment.patient.full_name }}</p>
+                        <p class="mb-2"><strong>Date:</strong> {{ appointment.appointment_date.strftime('%A, %d %b %Y') }}</p>
+                        <p class="mb-2"><strong>Time:</strong> {{ appointment.appointment_time.strftime('%H:%M') }}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Status:</strong> <span class="badge bg-primary">{{ appointment.status }}</span></p>
-                        <p><strong>Reason:</strong> {{ appointment.reason or 'Not specified' }}</p>
+                        <p class="mb-2"><strong>Status:</strong> {{ status(appointment.status) }}</p>
+                        <p class="mb-2"><strong>Reason:</strong> {{ appointment.reason or 'Not specified' }}</p>
                     </div>
                 </div>
 
                 {% if appointment.status == 'Booked' %}
-                <hr>
-                <h6>Complete Appointment</h6>
-                <form method="POST" action="{{ url_for('doctor.complete_appointment', appointment_id=appointment.id) }}">
-                    <div class="mb-3">
-                        <label for="diagnosis" class="form-label">Diagnosis *</label>
-                        <textarea class="form-control" id="diagnosis" name="diagnosis" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="prescription" class="form-label">Prescription</label>
-                        <textarea class="form-control" id="prescription" name="prescription" rows="3"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="treatment_notes" class="form-label">Treatment Notes</label>
-                        <textarea class="form-control" id="treatment_notes" name="treatment_notes" rows="2"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="follow_up_required" name="follow_up_required">
-                            <label class="form-check-label" for="follow_up_required">Follow-up Required</label>
+                    <hr>
+                    <h5 class="mb-3">Record treatment &amp; complete visit</h5>
+                    <form method="POST" action="{{ url_for('doctor.complete_appointment', appointment_id=appointment.id) }}">
+                        {{ csrf() }}
+                        <div class="mb-3">
+                            <label for="diagnosis" class="form-label">Diagnosis *</label>
+                            <textarea class="form-control" id="diagnosis" name="diagnosis" rows="3" maxlength="2000" required></textarea>
                         </div>
+                        <div class="mb-3">
+                            <label for="prescription" class="form-label">Prescription</label>
+                            <textarea class="form-control" id="prescription" name="prescription" rows="3" maxlength="2000"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="treatment_notes" class="form-label">Treatment Notes</label>
+                            <textarea class="form-control" id="treatment_notes" name="treatment_notes" rows="2" maxlength="2000"></textarea>
+                        </div>
+                        <div class="row align-items-end mb-4">
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="follow_up_required" name="follow_up_required">
+                                    <label class="form-check-label" for="follow_up_required">Follow-up required</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="follow_up_date" class="form-label">Follow-up date</label>
+                                <input type="date" class="form-control" id="follow_up_date" name="follow_up_date" min="{{ follow_up_min.isoformat() }}">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i> Complete Appointment</button>
+                    </form>
+                    <div class="mt-2">
+                        {{ post_button(url_for('doctor.cancel_appointment', appointment_id=appointment.id), 'Cancel Appointment', 'btn btn-outline-danger', 'Cancel this appointment?', 'xmark') }}
                     </div>
-                    <div class="mb-3">
-                        <label for="follow_up_date" class="form-label">Follow-up Date</label>
-                        <input type="date" class="form-control" id="follow_up_date" name="follow_up_date">
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-success">Complete Appointment</button>
-                        <a href="{{ url_for('doctor.cancel_appointment', appointment_id=appointment.id) }}" class="btn btn-danger" onclick="return confirm('Cancel?')">Cancel Appointment</a>
-                        <a href="{{ url_for('doctor.appointments') }}" class="btn btn-secondary">Back</a>
-                    </div>
-                </form>
-                {% else %}
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('doctor.appointments') }}" class="btn btn-secondary">Back</a>
-                </div>
+                {% elif t %}
+                    <hr>
+                    <h5>Treatment</h5>
+                    <p class="mb-2"><strong>Diagnosis:</strong> {{ t.diagnosis }}</p>
+                    {% if t.prescription %}<p class="mb-2"><strong>Prescription:</strong> {{ t.prescription }}</p>{% endif %}
+                    {% if t.treatment_notes %}<p class="mb-2"><strong>Notes:</strong> {{ t.treatment_notes }}</p>{% endif %}
+                    {% if t.follow_up_required %}<p class="mb-0 text-primary"><i class="fas fa-calendar-day me-1"></i>Follow-up{% if t.follow_up_date %} on {{ t.follow_up_date.strftime('%d %b %Y') }}{% endif %}</p>{% endif %}
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <div class="card">
-            <div class="card-header">
-                <h6>Patient Information</h6>
-            </div>
-            <div class="card-body">
-                <p><strong>Name:</strong> {{ appointment.patient.full_name }}</p>
-                <p><strong>Email:</strong> {{ appointment.patient.email }}</p>
-                <p><strong>Phone:</strong> {{ appointment.patient.phone }}</p>
-                {% if appointment.patient.blood_group %}
-                <p><strong>Blood Group:</strong> {{ appointment.patient.blood_group }}</p>
-                {% endif %}
-                <a href="{{ url_for('doctor.patient_history', patient_id=appointment.patient.id) }}" class="btn btn-outline-info btn-sm">Full History</a>
+            <div class="card-header">Patient Information</div>
+            <div class="card-body small">
+                <p class="mb-2"><strong>Name:</strong> {{ appointment.patient.full_name }}</p>
+                <p class="mb-2"><strong>Email:</strong> {{ appointment.patient.email }}</p>
+                <p class="mb-2"><strong>Phone:</strong> {{ appointment.patient.phone }}</p>
+                {% if appointment.patient.blood_group %}<p class="mb-2"><strong>Blood Group:</strong> {{ appointment.patient.blood_group }}</p>{% endif %}
+                <a href="{{ url_for('doctor.patient_history', patient_id=appointment.patient.id) }}" class="btn btn-outline-info btn-sm mt-1">Full History</a>
             </div>
         </div>
     </div>

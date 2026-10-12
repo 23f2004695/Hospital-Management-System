@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "macros.html" import status, post_button %}
+
+{% block title %}Patient History - {{ patient.full_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <h2 class="mb-0"><i class="fas fa-notes-medical text-primary"></i> {{ patient.full_name }}</h2>
+    <div class="d-flex gap-2">
+        {% if current_user.role == 'admin' %}
+            {% if patient.is_active %}
+                {{ post_button(url_for('admin.toggle_patient', patient_id=patient.id), 'Block patient', 'btn btn-outline-danger', 'Block this patient from logging in?', 'ban') }}
+            {% else %}
+                {{ post_button(url_for('admin.toggle_patient', patient_id=patient.id), 'Re-activate patient', 'btn btn-outline-success', None, 'check') }}
+            {% endif %}
+        {% endif %}
+        <a href="{{ back_url }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">Patient Information</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5">Patient ID</dt><dd class="col-7">#{{ patient.id }}</dd>
+                    <dt class="col-5">Email</dt><dd class="col-7 text-break">{{ patient.email }}</dd>
+                    <dt class="col-5">Phone</dt><dd class="col-7">{{ patient.phone }}</dd>
+                    {% if patient.date_of_birth %}<dt class="col-5">Date of birth</dt><dd class="col-7">{{ patient.date_of_birth.strftime('%d %b %Y') }}</dd>{% endif %}
+                    {% if patient.gender %}<dt class="col-5">Gender</dt><dd class="col-7">{{ patient.gender }}</dd>{% endif %}
+                    {% if patient.blood_group %}<dt class="col-5">Blood group</dt><dd class="col-7">{{ patient.blood_group }}</dd>{% endif %}
+                    {% if patient.emergency_contact %}<dt class="col-5">Emergency</dt><dd class="col-7">{{ patient.emergency_contact }}</dd>{% endif %}
+                    <dt class="col-5">Status</dt>
+                    <dd class="col-7"><span class="badge {{ 'bg-success' if patient.is_active else 'bg-danger' }}">{{ 'Active' if patient.is_active else 'Blocked' }}</span></dd>
+                </dl>
+                {% if patient.medical_history %}
+                    <hr>
+                    <h6>Medical history</h6>
+                    <p class="small mb-0" style="white-space: pre-line">{{ patient.medical_history }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">Visits &amp; Treatments</div>
+            <div class="card-body">
+                {% for appointment in appointments %}
+                    {% set t = appointment.treatment %}
+                    <div class="timeline-item {% if not loop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between flex-wrap gap-2">
+                            <div>
+                                <strong>{{ appointment.appointment_date.strftime('%d %b %Y') }}</strong>
+                                <span class="text-muted">at {{ appointment.appointment_time.strftime('%H:%M') }}</span>
+                                &middot; Dr. {{ appointment.doctor.full_name }}
+                                <span class="text-muted small">({{ appointment.doctor.department.name }})</span>
+                            </div>
+                            {{ status(appointment.status) }}
+                        </div>
+                        {% if appointment.reason %}<div class="small text-muted mt-1">Reason: {{ appointment.reason }}</div>{% endif %}
+                        {% if t %}
+                            <div class="row small mt-2">
+                                <div class="col-md-6"><span class="fw-semibold">Diagnosis:</span> {{ t.diagnosis }}</div>
+                                {% if t.prescription %}<div class="col-md-6"><span class="fw-semibold">Prescription:</span> {{ t.prescription }}</div>{% endif %}
+                                {% if t.treatment_notes %}<div class="col-12 mt-1"><span class="fw-semibold">Notes:</span> {{ t.treatment_notes }}</div>{% endif %}
+                                {% if t.follow_up_required %}
+                                    <div class="col-12 mt-1 text-primary"><i class="fas fa-calendar-day me-1"></i>Follow-up{% if t.follow_up_date %} on {{ t.follow_up_date.strftime('%d %b %Y') }}{% endif %}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No appointments yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

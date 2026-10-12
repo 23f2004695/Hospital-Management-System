@@ -1,0 +1,49 @@
+{# Shared fields for the add and edit doctor forms. `d` is the doctor (or submitted form) being edited. #}
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="full_name" class="form-label">Full Name *</label>
+        <input type="text" class="form-control" id="full_name" name="full_name" value="{{ d.full_name or '' }}" maxlength="100" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="email" class="form-label">Email *</label>
+        <input type="email" class="form-control" id="email" name="email" value="{{ d.email or '' }}" required>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="phone" class="form-label">Phone *</label>
+        <input type="tel" class="form-control" id="phone" name="phone" value="{{ d.phone or '' }}" pattern="[+]?[0-9 ]{7,20}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="license_number" class="form-label">License Number *</label>
+        <input type="text" class="form-control" id="license_number" name="license_number" value="{{ d.license_number or '' }}" maxlength="50" required>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="department_id" class="form-label">Department *</label>
+        <select class="form-select" id="department_id" name="department_id" required>
+            <option value="">Select Department</option>
+            {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if d.department_id|string == dept.id|string %}selected{% endif %}>{{ dept.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="experience_years" class="form-label">Experience (years)</label>
+        <input type="number" class="form-control" id="experience_years" name="experience_years" min="0" max="70" value="{{ d.experience_years if d.experience_years is not none else 0 }}">
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="qualification" class="form-label">Qualification</label>
+        <input type="text" class="form-control" id="qualification" name="qualification" value="{{ d.qualification or '' }}" placeholder="MBBS, MD">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="consultation_fee" class="form-label">Consultation Fee (₹)</label>
+        <input type="number" class="form-control" id="consultation_fee" name="consultation_fee" min="0" step="1" value="{{ d.consultation_fee if d.consultation_fee is not none else 500 }}">
+    </div>
+</div>

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Error {{ code }}{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <div class="display-1 fw-bold text-primary opacity-50">{{ code }}</div>
+    <p class="lead mb-4">{{ message }}</p>
+    <a href="{{ url_for('auth.home') if current_user.is_authenticated else url_for('index') }}" class="btn btn-primary">
+        <i class="fas fa-house me-1"></i> Go back home
+    </a>
+</div>
+{% endblock %}
