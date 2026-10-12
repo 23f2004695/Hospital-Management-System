@@ -1,266 +1,198 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, session
-from flask_login import login_required, current_user
-from app.models import Patient, Doctor, Department, Appointment, DoctorAvailability, Treatment
-from app import db
-from datetime import datetime, date, timedelta, time
-from sqlalchemy import and_, or_
+from datetime import date, timedelta
 
+from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask_login import current_user
+from sqlalchemy import func
+
+from app import db
+from app.models import Patient, Doctor, Department, Appointment, DoctorAvailability
+from app.utils import (FormError, role_required, field, email_field, phone_field, date_field, time_field,
+                       int_arg, MIN_PASSWORD_LENGTH, BLOOD_GROUPS, GENDERS)
 
 patient = Blueprint('patient', __name__)
+patient_required = role_required('patient')
 
-
-def patient_required(f):
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or session.get('user_type') != 'patient':
-            flash('Patient access required!', 'error')
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+BOOKING_DAYS = 7
 
 
 @patient.route('/dashboard')
-@login_required
 @patient_required
 def dashboard():
     upcoming_appointments = Appointment.query.filter(
-        and_(Appointment.patient_id == current_user.id,
-             Appointment.appointment_date >= date.today(),
-             Appointment.status.in_(['Booked']))
+        Appointment.patient_id == current_user.id,
+        Appointment.appointment_date >= date.today(),
+        Appointment.status == 'Booked',
     ).order_by(Appointment.appointment_date, Appointment.appointment_time).all()
 
-    recent_appointments = Appointment.query.filter_by(
-        patient_id=current_user.id
-    ).order_by(Appointment.appointment_date.desc()).limit(5).all()
+    recent_appointments = Appointment.query.filter_by(patient_id=current_user.id)\
+        .order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc()).limit(5).all()
 
-    departments = Department.query.all()
+    departments = Department.query.order_by(Department.name).all()
+    doctor_counts = dict(db.session.query(Doctor.department_id, func.count(Doctor.id))
+                         .filter(Doctor.is_available.is_(True)).group_by(Doctor.department_id).all())
 
-    start_date = date.today()
-    end_date = start_date + timedelta(days=7)
+    return render_template('patient/dashboard.html',
+                           upcoming_appointments=upcoming_appointments,
+                           recent_appointments=recent_appointments,
+                           departments=departments,
+                           doctor_counts=doctor_counts)
 
-    available_doctors = db.session.query(Doctor).join(DoctorAvailability).filter(
-        and_(DoctorAvailability.date >= start_date,
-             DoctorAvailability.date <= end_date,
-             DoctorAvailability.is_available == True,
-             Doctor.is_available == True)
-    ).distinct().all()
 
-    return render_template(
-        'patient/dashboard.html',
-        upcoming_appointments=upcoming_appointments,
-        recent_appointments=recent_appointments,
-        departments=departments,
-        available_doctors=available_doctors
-    )
+def _bookable_dates(doctor):
+    today = date.today()
+    rows = DoctorAvailability.query.filter(
+        DoctorAvailability.doctor_id == doctor.id,
+        DoctorAvailability.date >= today,
+        DoctorAvailability.date < today + timedelta(days=BOOKING_DAYS),
+        DoctorAvailability.is_available.is_(True),
+    ).order_by(DoctorAvailability.date).all()
+    # Only offer days that still have a free slot
+    return [r.date for r in rows if doctor.slots_for(r.date)]
 
 
 @patient.route('/book-appointment', methods=['GET', 'POST'])
-@login_required
 @patient_required
 def book_appointment():
-    # POST: actually book the appointment
     if request.method == 'POST':
-        doctor_id = request.form.get('doctor_id')
-        appointment_date = request.form.get('appointment_date')
-        appointment_time = request.form.get('appointment_time')
-        reason = request.form.get('reason')
-
         try:
-            appt_date = datetime.strptime(appointment_date, '%Y-%m-%d').date()
-            appt_time = datetime.strptime(appointment_time, '%H:%M').time()
-        except ValueError:
-            flash('Invalid date or time format!', 'error')
-            return redirect(url_for('patient.book_appointment'))
+            doctor = db.session.get(Doctor, int_arg(request.form.get('doctor_id')) or 0)
+            if not doctor or not doctor.is_available:
+                raise FormError('That doctor is not taking appointments right now.')
+            appt_date = date_field(request.form.get('appointment_date'), 'Date')
+            appt_time = time_field(request.form.get('appointment_time'), 'Time')
+            reason = field(request.form, 'reason', required=False, max_len=1000)
 
-        existing_appointment = Appointment.query.filter_by(
-            doctor_id=doctor_id,
-            appointment_date=appt_date,
-            appointment_time=appt_time,
-            status='Booked'
-        ).first()
+            if appt_time not in doctor.slots_for(appt_date):
+                raise FormError('That time slot is no longer available. Please pick another one.')
+            clash = Appointment.query.filter_by(patient_id=current_user.id, appointment_date=appt_date,
+                                                appointment_time=appt_time, status='Booked').first()
+            if clash:
+                raise FormError(f'You already have an appointment with Dr. {clash.doctor.full_name} at that time.')
+        except FormError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('patient.book_appointment', **{
+                k: v for k, v in (('department', request.form.get('department_id')),
+                                  ('doctor', request.form.get('doctor_id')),
+                                  ('date', request.form.get('appointment_date'))) if v
+            }))
 
-        if existing_appointment:
-            flash('This time slot is already booked!', 'error')
-            return redirect(url_for('patient.book_appointment'))
-
-        doctor_availability = DoctorAvailability.query.filter_by(
-            doctor_id=doctor_id,
-            date=appt_date,
-            is_available=True
-        ).first()
-
-        if not doctor_availability:
-            flash('Doctor is not available on this date!', 'error')
-            return redirect(url_for('patient.book_appointment'))
-
-        if not (doctor_availability.start_time <= appt_time <= doctor_availability.end_time):
-            flash('Selected time is outside doctor\'s available hours!', 'error')
-            return redirect(url_for('patient.book_appointment'))
-
-        appointment = Appointment(
-            patient_id=current_user.id,
-            doctor_id=doctor_id,
-            appointment_date=appt_date,
-            appointment_time=appt_time,
-            reason=reason,
-            status='Booked'
-        )
-
-        db.session.add(appointment)
+        db.session.add(Appointment(patient_id=current_user.id, doctor_id=doctor.id, appointment_date=appt_date,
+                                   appointment_time=appt_time, reason=reason, status='Booked'))
         db.session.commit()
-
-        flash('Appointment booked successfully!', 'success')
+        flash(f'Appointment booked with Dr. {doctor.full_name} on {appt_date:%d %b} at {appt_time:%H:%M}!', 'success')
         return redirect(url_for('patient.appointments'))
 
-    # GET: show booking form with dynamic options
-    departments = Department.query.all()
-    selected_department = request.args.get('department', '')
-    selected_doctor = request.args.get('doctor', '')
-    selected_date = request.args.get('date', '')
+    # GET: department -> doctor -> date -> time, each step narrowing the next
+    departments = Department.query.order_by(Department.name).all()
+    department = db.session.get(Department, int_arg(request.args.get('department')) or 0)
+    doctors = Doctor.query.filter_by(department_id=department.id, is_available=True)\
+        .order_by(Doctor.full_name).all() if department else []
 
-    doctors = []
-    available_dates = []
-    available_times = []
+    selected_doctor = db.session.get(Doctor, int_arg(request.args.get('doctor')) or 0)
+    if selected_doctor not in doctors:
+        selected_doctor = None
 
-    # Step 1: load doctors for selected department
-    if selected_department:
-        doctors = Doctor.query.filter_by(
-            department_id=int(selected_department),
-            is_available=True
-        ).all()
-
-    # Step 2: load available dates for selected doctor (next 7 days)
+    available_dates, available_times, selected_date = [], [], None
     if selected_doctor:
-        start_date = date.today()
-        end_date = start_date + timedelta(days=7)
-
-        availabilities = DoctorAvailability.query.filter(
-            and_(DoctorAvailability.doctor_id == int(selected_doctor),
-                 DoctorAvailability.date >= start_date,
-                 DoctorAvailability.date <= end_date,
-                 DoctorAvailability.is_available == True)
-        ).order_by(DoctorAvailability.date).all()
-
-        available_dates = list(
-            set((avail.date, avail.date.strftime('%Y-%m-%d')) for avail in availabilities)
-        )
-        available_dates.sort()
-
-        # If no date is selected yet but we have available dates, default to first one
-        if available_dates and not selected_date:
-            selected_date = available_dates[0][1]
-
-    # Step 3: generate available time slots for selected date + doctor
-    if selected_doctor and selected_date:
+        available_dates = _bookable_dates(selected_doctor)
         try:
-            selected_date_obj = datetime.strptime(selected_date, '%Y-%m-%d').date()
+            selected_date = date_field(request.args.get('date'), required=False)
+        except FormError:
+            selected_date = None
+        if selected_date not in available_dates:
+            selected_date = available_dates[0] if available_dates else None
+        if selected_date:
+            available_times = selected_doctor.slots_for(selected_date)
 
-            doctor_availability = DoctorAvailability.query.filter_by(
-                doctor_id=int(selected_doctor),
-                date=selected_date_obj,
-                is_available=True
-            ).first()
-
-            if doctor_availability:
-                booked_appointments = Appointment.query.filter_by(
-                    doctor_id=int(selected_doctor),
-                    appointment_date=selected_date_obj,
-                    status='Booked'
-                ).all()
-
-                booked_times = [appt.appointment_time for appt in booked_appointments]
-
-                current_time = doctor_availability.start_time
-                while current_time <= doctor_availability.end_time:
-                    if current_time not in booked_times:
-                        available_times.append(current_time.strftime('%H:%M'))
-
-                    minutes = current_time.hour * 60 + current_time.minute
-                    minutes += 30
-                    if minutes < 24 * 60:
-                        current_time = time(minutes // 60, minutes % 60)
-                    else:
-                        break
-        except ValueError:
-            pass
-
-    return render_template(
-        'patient/book_appointment.html',
-        departments=departments,
-        doctors=doctors,
-        available_dates=available_dates,
-        available_times=available_times,
-        selected_department=selected_department,
-        selected_doctor=selected_doctor,
-        selected_date=selected_date
-    )
+    return render_template('patient/book_appointment.html',
+                           departments=departments, doctors=doctors,
+                           department=department, selected_doctor=selected_doctor,
+                           available_dates=available_dates, selected_date=selected_date,
+                           available_times=available_times)
 
 
 @patient.route('/appointments')
-@login_required
 @patient_required
 def appointments():
-    appointments = Appointment.query.filter_by(
-        patient_id=current_user.id
-    ).order_by(Appointment.appointment_date.desc()).all()
-
+    appointments = Appointment.query.filter_by(patient_id=current_user.id)\
+        .order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc()).all()
     return render_template('patient/appointments.html', appointments=appointments)
 
 
-@patient.route('/cancel-appointment/<int:appointment_id>')
-@login_required
+@patient.route('/cancel-appointment/<int:appointment_id>', methods=['POST'])
 @patient_required
 def cancel_appointment(appointment_id):
-    appointment = Appointment.query.filter_by(
-        id=appointment_id,
-        patient_id=current_user.id
-    ).first_or_404()
-
+    appointment = Appointment.query.filter_by(id=appointment_id, patient_id=current_user.id).first_or_404()
     if appointment.status != 'Booked':
         flash('Can only cancel booked appointments!', 'error')
     else:
         appointment.status = 'Cancelled'
         db.session.commit()
         flash('Appointment cancelled successfully!', 'info')
-
-    return redirect(url_for('patient.appointments'))
+    return redirect(request.referrer or url_for('patient.appointments'))
 
 
 @patient.route('/profile', methods=['GET', 'POST'])
-@login_required
 @patient_required
 def profile():
     if request.method == 'POST':
-        current_user.full_name = request.form.get('full_name')
-        current_user.email = request.form.get('email')
-        current_user.phone = request.form.get('phone')
-        current_user.address = request.form.get('address')
-        current_user.blood_group = request.form.get('blood_group')
-        current_user.emergency_contact = request.form.get('emergency_contact')
+        form = request.form
+        try:
+            full_name = field(form, 'full_name', 'Full name', max_len=100)
+            email = email_field(form)
+            phone = phone_field(form)
+            emergency = phone_field(form, 'emergency_contact', 'Emergency contact', required=False)
+            dob = date_field(form.get('date_of_birth'), 'Date of birth', required=False)
+            gender = form.get('gender') or None
+            blood_group = form.get('blood_group') or None
+            address = field(form, 'address', required=False, max_len=500)
+            medical_history = field(form, 'medical_history', 'Medical history', required=False, max_len=2000)
 
-        date_of_birth = request.form.get('date_of_birth')
-        if date_of_birth:
-            current_user.date_of_birth = datetime.strptime(
-                date_of_birth, '%Y-%m-%d'
-            ).date()
+            if dob and dob > date.today():
+                raise FormError('Date of birth cannot be in the future.')
+            if gender and gender not in GENDERS:
+                raise FormError('Please choose a gender from the list.')
+            if blood_group and blood_group not in BLOOD_GROUPS:
+                raise FormError('Please choose a blood group from the list.')
+            if Patient.query.filter(func.lower(Patient.email) == email, Patient.id != current_user.id).first():
+                raise FormError('Another account already uses that email.')
 
-        current_user.gender = request.form.get('gender')
-        current_user.medical_history = request.form.get('medical_history')
+            new_password = form.get('new_password') or ''
+            if new_password:
+                if not current_user.check_password(form.get('current_password') or ''):
+                    raise FormError('Your current password is incorrect.')
+                if len(new_password) < MIN_PASSWORD_LENGTH:
+                    raise FormError(f'New password must be at least {MIN_PASSWORD_LENGTH} characters.')
+        except FormError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('patient.profile'))
+
+        current_user.full_name = full_name
+        current_user.email = email
+        current_user.phone = phone
+        current_user.emergency_contact = emergency
+        current_user.date_of_birth = dob
+        current_user.gender = gender
+        current_user.blood_group = blood_group
+        current_user.address = address
+        current_user.medical_history = medical_history
+        if new_password:
+            current_user.set_password(new_password)
 
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('patient.profile'))
 
-    return render_template('patient/profile.html')
+    return render_template('patient/profile.html', blood_groups=BLOOD_GROUPS, genders=GENDERS,
+                           today_iso=date.today().isoformat())
 
 
 @patient.route('/treatment-history')
-@login_required
 @patient_required
 def treatment_history():
-    appointments = db.session.query(Appointment).join(Treatment).filter(
+    appointments = Appointment.query.filter(
         Appointment.patient_id == current_user.id,
-        Appointment.status == 'Completed'
+        Appointment.status == 'Completed',
+        Appointment.treatments.any(),
     ).order_by(Appointment.appointment_date.desc()).all()
-
     return render_template('patient/treatment_history.html', appointments=appointments)
